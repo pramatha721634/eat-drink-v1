@@ -1,10 +1,17 @@
 package com.eat.drink.rest
 
+import com.charging.stations.response.Address
+import com.charging.stations.response.Category
+import com.charging.stations.response.ChargingStationsResponse
+import com.charging.stations.response.ItemDetails
 import com.eat.drink.configuration.EatDrinkConfig
 import com.eat.drink.exception.CityNotFoundException
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestTemplate
+import java.io.IOException
 
 @Service
 class EatDrinkServiceImpl : EatDrinkService {
@@ -15,7 +22,12 @@ class EatDrinkServiceImpl : EatDrinkService {
     @Autowired
     lateinit var restTemplate: RestTemplate
 
-    override fun getRestaurantsAndPubsDetails(city : String): String? {
+    @Autowired
+    lateinit var objectMapper: ObjectMapper
+
+    var itemDetailsList : HashSet<ItemDetails> = HashSet<ItemDetails>()
+
+    override fun getRestaurantsAndPubsDetails(city : String): ChargingStationsResponse? {
         var longitudeAndLatitude = getLongitudeAndLatitude(city)
 
         if (longitudeAndLatitude == null)  {
@@ -25,7 +37,7 @@ class EatDrinkServiceImpl : EatDrinkService {
         val baseURL: String = eatDrinkConfig.baseUrl + "?at=" + longitudeAndLatitude + "&cat=" + eatDrinkConfig.cat + "&apiKey=" + eatDrinkConfig.apiKey
         var restaurantsAndPubsResponse = restTemplate.getForObject(baseURL, String::class.java)
 
-        return restaurantsAndPubsResponse
+        return getEatDrinkResponse(restaurantsAndPubsResponse)
     }
 
     fun getLongitudeAndLatitude(city : String) : String? {
@@ -50,4 +62,88 @@ class EatDrinkServiceImpl : EatDrinkService {
         }
         return null
      }
+
+
+    fun getEatDrinkResponse(chargingStationsDetails : String?) : ChargingStationsResponse {
+        var chargingStationsResponse = ChargingStationsResponse()
+
+        try {
+            var jsonNode: JsonNode = objectMapper.readTree(chargingStationsDetails)
+
+            var itemDetailsList : Set<ItemDetails> = getItemDetailsList(jsonNode)
+            var address : Address = getAddress(jsonNode)
+
+            chargingStationsResponse.address = address
+            chargingStationsResponse.eatDrinkList = itemDetailsList
+
+        } catch (ioException: IOException) {
+
+        } catch (exception: Exception) {
+
+        }
+        return chargingStationsResponse
+    }
+
+    fun getItemDetailsList(jsonNode: JsonNode) : Set<ItemDetails> {
+
+        var JsonNodeResult = jsonNode.get("results")
+        var jsonNodeResultList = JsonNodeResult.get("items")
+
+        for (jsonResultNode in jsonNodeResultList){
+
+            var itemDetails : ItemDetails = getItemDetails(jsonResultNode)
+            itemDetailsList.add(itemDetails)
+
+            if(itemDetailsList.size == 3) {
+                break
+            }
+        }
+        return itemDetailsList
+    }
+
+    fun getItemDetails(jsonResultNode: JsonNode) : ItemDetails {
+
+        var itemDetails = ItemDetails();
+        itemDetails.id = jsonResultNode.get("id").asText()
+        itemDetails.distance = jsonResultNode.get("distance").asText()
+        itemDetails.title = jsonResultNode.get("title").asText()
+        itemDetails.averageRating = jsonResultNode.get("averageRating").asText()
+        itemDetails.vicinity = jsonResultNode.get("vicinity").asText()
+        itemDetails.type = jsonResultNode.get("type").asText()
+        itemDetails.category = getCategory(jsonResultNode)
+
+        return itemDetails
+    }
+
+    fun getCategory (jsonNode: JsonNode) : Category {
+        var category = Category()
+        var jsonNodeCategory = jsonNode.get("category")
+        category.id = jsonNodeCategory.get("id").asText()
+        category.title = jsonNodeCategory.get("title").asText()
+        category.type = jsonNodeCategory.get("type").asText()
+        category.system = jsonNodeCategory.get("system").asText()
+
+        return category
+    }
+
+    fun getAddress(jsonNode: JsonNode) : Address {
+        var address  = Address();
+        var jsonNodeSearch = jsonNode.get("search")
+        var jsonNodeContext = jsonNodeSearch.get("context")
+        var jsonNodeLocation = jsonNodeContext.get("location")
+
+        var jsonNodeAddress = jsonNodeLocation.get("address")
+        address.houseNo     = jsonNodeAddress.get("house").asText()
+        address.street      = jsonNodeAddress.get("street").asText()
+        address.postalCode  = jsonNodeAddress.get("postalCode").asText()
+        address.district    = jsonNodeAddress.get("district").asText()
+        address.city        = jsonNodeAddress.get("city").asText()
+        address.county      = jsonNodeAddress.get("county").asText()
+        address.stateCode   = jsonNodeAddress.get("stateCode").asText()
+        address.country     = jsonNodeAddress.get("country").asText()
+        address.countryCode = jsonNodeAddress.get("countryCode").asText()
+
+        return address
+    }
+
 }

@@ -1,5 +1,6 @@
 package com.eat.drink.controller
 
+import com.charging.stations.response.ChargingStationsResponse
 import com.eat.drink.rest.EatDrinkService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.web.bind.annotation.GetMapping
@@ -13,7 +14,7 @@ class EatDrinkController {
     lateinit var eatDrinkService: EatDrinkService
 
     @GetMapping("/eat_drink/{city}")
-    fun getRestaurantsAndPubsDetails(@PathVariable city: String): String? {
+    fun getRestaurantsAndPubsDetails(@PathVariable city: String): ChargingStationsResponse? {
         return eatDrinkService.getRestaurantsAndPubsDetails(city)
     }
 }
