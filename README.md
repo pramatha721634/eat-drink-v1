@@ -1,6 +1,6 @@
 # eat-drink-v1 
 eat-drink-v1 API give the details response of Restaurants and Pub within given city.
-currently it is working for 10 citys,please use below cities names
+currently it is working for 10 citys,please use below cities names :                                                                                                                
 Madrid 
 Budapest 
 Prague 
